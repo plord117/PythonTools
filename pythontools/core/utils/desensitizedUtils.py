@@ -15,7 +15,7 @@ Change Activity:
 
 # here put the import lib
 from ..constants.string_constant import CharPool, DesensitizedType
-from ..decorator import UnCkeckFucntion
+from ..decorator import UnCheckFunction
 from .basicutils import StringUtil
 
 DesensitizedType.mro
@@ -80,7 +80,7 @@ class DesensitizedUtil:
             raise ValueError(f"unsupported desensitized type: {desensitized_type}")
 
     @classmethod
-    @UnCkeckFucntion(WARNING_ENABLED)
+    @UnCheckFunction(WARNING_ENABLED)
     def retain_front_and_end(cls, value: str | bytes, front: int, end: int) -> str:
         """
         根据前后保留的位数脱敏
@@ -181,27 +181,6 @@ class DesensitizedUtil:
         return cls.retain_front_and_end(value, 0, 1)
 
     @classmethod
-    def desensitize_phone(cls, phone: str | bytes) -> str:
-        """
-        脱敏电话号码
-
-        Parameters
-        ----------
-        phone : str | bytes
-            待脱敏电话号码
-
-        Returns
-        -------
-        str
-            脱敏后的电话号码
-        """
-        return cls.retain_front_and_end(
-            phone,
-            3,
-            4,
-        )
-
-    @classmethod
     def desensitize_chinese_name(cls, name: str | bytes) -> str:
         """
         脱敏中文姓名
@@ -282,7 +261,7 @@ class DesensitizedUtil:
         )
 
     @classmethod
-    @UnCkeckFucntion(WARNING_ENABLED)
+    @UnCheckFunction(WARNING_ENABLED)
     def desensitize_email(cls, email: str | bytes) -> str:
         """
         脱敏电子邮箱
@@ -322,7 +301,7 @@ class DesensitizedUtil:
         return cls.mask_all(password)
 
     @classmethod
-    @UnCkeckFucntion(WARNING_ENABLED)
+    @UnCheckFunction(WARNING_ENABLED)
     def desensitize_bank_card(cls, bank_card: str | bytes) -> str:
         """
         脱敏银行卡号

@@ -14,8 +14,13 @@ Change Activity:
 """
 
 # here put the import lib
+import os
+import re
 import tempfile
 import time
+import unicodedata
+import uuid
+from datetime import datetime
 from operator import eq
 from os import PathLike
 from pathlib import Path
@@ -25,7 +30,7 @@ from pythontools.core.utils.basicutils import StringUtil
 from pythontools.core.utils.datetimeutils import DatetimeUtil, TimeUnit
 
 
-class OsUtil:
+class FileUtil:
     """
     文件、系统工具类
 
@@ -96,6 +101,15 @@ class OsUtil:
 
     WINDOWS_LINE_ENDING = "\r\n"
     LINUX_LINE_ENDING = "\n"
+    FILENAME_ASCII_STRIP_RE = re.compile(r"[^A-Za-z0-9_.-]")
+    WINDOWS_DEVICE_FILES = {
+        "CON",
+        "PRN",
+        "AUX",
+        "NUL",
+        *(f"COM{i}" for i in range(10)),
+        *(f"LPT{i}" for i in range(10)),
+    }
 
     @classmethod
     def is_exist(
@@ -472,7 +486,7 @@ class OsUtil:
             cls.is_exist(p, raise_exception=True)
 
         t = cls.get_create_time_in_nanoseconds(p, check_exist=True)
-        create_time_in_milliseconds = DatetimeUtil.conver_time(t, TimeUnit.NANOSECONDS, TimeUnit.MILLISECONDS)
+        create_time_in_milliseconds = DatetimeUtil.convert_time(t, TimeUnit.NANOSECONDS, TimeUnit.MILLISECONDS)
         return create_time_in_milliseconds
 
     @classmethod
@@ -501,7 +515,7 @@ class OsUtil:
             cls.is_exist(p, raise_exception=True)
 
         t = cls.get_create_time_in_nanoseconds(p, check_exist=True)
-        create_time_in_seconds = DatetimeUtil.conver_time(t, TimeUnit.NANOSECONDS, TimeUnit.SECONDS)
+        create_time_in_seconds = DatetimeUtil.convert_time(t, TimeUnit.NANOSECONDS, TimeUnit.SECONDS)
 
         return create_time_in_seconds
 
@@ -579,7 +593,7 @@ class OsUtil:
             文件最后修改时间(毫秒)
         """
         last_modify_time_in_nanoseconds = cls.get_last_modify_time_in_nanoseconds(p, check_exist=check_exist)
-        last_modify_time_in_mill = DatetimeUtil.conver_time(
+        last_modify_time_in_mill = DatetimeUtil.convert_time(
             last_modify_time_in_nanoseconds, TimeUnit.NANOSECONDS, TimeUnit.MILLISECONDS
         )
         return last_modify_time_in_mill
@@ -602,7 +616,7 @@ class OsUtil:
             文件最后修改时间(秒)
         """
         last_modify_time_in_nanoseconds = cls.get_last_modify_time_in_nanoseconds(p, check_exist=check_exist)
-        last_modify_time_in_second = DatetimeUtil.conver_time(
+        last_modify_time_in_second = DatetimeUtil.convert_time(
             last_modify_time_in_nanoseconds, TimeUnit.NANOSECONDS, TimeUnit.SECONDS
         )
 
@@ -844,3 +858,53 @@ class OsUtil:
             return Path(p.decode(CharsetUtil.UTF_8))
 
         return Path(p)  # type: ignore
+
+    @classmethod
+    def generate_random_file_name(cls, seed_name: str) -> str:
+        """
+        创建随机文件名称
+
+        Parameters
+        ----------
+        seed_name : str
+            初始名称
+
+        Returns
+        -------
+        str
+            随机文件名
+        """
+        dt = datetime.now()
+        return "{}_{}_{}".format(dt.strftime("%Y%m%d_%H%M%S%f"), uuid.uuid4().hex[0:6], cls.secure_filename(seed_name))
+
+    @classmethod
+    def secure_filename(cls, filename: str) -> str:
+        """
+        传入一个文件名，它会返回一个安全版本。这文件名可以安全地存储在普通文件系统中并传递
+
+        Parameters
+        ----------
+        filename : str
+            待转换文件名
+
+        Returns
+        -------
+        str
+            安全的文件名称，可能会出现空字符串
+
+        Notes
+        -------
+        ref: https://github.com/pallets/werkzeug/blob/65d3a84a28bad7752f333a082360682adb3d925c/src/werkzeug/utils.py#L195
+        """
+        filename = unicodedata.normalize("NFKD", filename)
+        filename = filename.encode("ascii", "ignore").decode("ascii")
+
+        for sep in os.sep, os.path.altsep:
+            if sep:
+                filename = filename.replace(sep, " ")
+        filename = str(cls.FILENAME_ASCII_STRIP_RE.sub("", "_".join(filename.split()))).strip("._")
+
+        if os.name == "nt" and filename and filename.split(".")[0].upper() in cls.WINDOWS_DEVICE_FILES:
+            filename = f"_{filename}"
+
+        return filename

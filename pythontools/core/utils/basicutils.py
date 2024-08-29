@@ -22,7 +22,7 @@ from collections.abc import Mapping, Sequence, Set
 from typing import Any
 
 from ..constants.string_constant import CharPool, CharsetUtil
-from ..decorator import UnCkeckFucntion
+from ..decorator import UnCheckFunction
 from .randomutils import RandomUtil
 
 
@@ -145,7 +145,7 @@ class BooleanUtil:
         :param strict_mode: 是否启动严格模式, 如果开启严格模式, 则不会使用BOOL进行布尔运算, 否则会进行布尔运算
         :return: 'on', 'off'
         """
-        return cls.to_string(value, "YES", "NO", strict_mode=strict_mode)
+        return cls.to_string(value, "ON", "OFF", strict_mode=strict_mode)
 
     @classmethod
     def to_str_yes_no(cls, value: bool, *, strict_mode: bool = True) -> str:
@@ -156,6 +156,25 @@ class BooleanUtil:
         :return: 'yes', 'no'
         """
         return cls.to_string(value, "YES", "NO", strict_mode=strict_mode)
+
+    @classmethod
+    def to_chinese_str(cls, value: bool, *, strict_mode: bool = True) -> str:
+        """
+        将给定布尔值转换为“是”或者“否”
+
+        Parameters
+        ----------
+        value : bool
+            待转换布尔值
+        strict_mode : bool, optional
+            是否启动严格模式, 如果开启严格模式, 则不会使用BOOL进行布尔运算,否则会进行布尔运算, by default True
+
+        Returns
+        -------
+        str
+            转换后的字符串
+        """
+        return cls.to_string(value, "是", "否", strict_mode=strict_mode)
 
     @classmethod
     def to_string(cls, value: bool, true_str: str, false_str: str, *, strict_mode: bool = False) -> str:
@@ -177,7 +196,7 @@ class BooleanUtil:
         return true_str if value else false_str
 
     @classmethod
-    def and_all(cls, *values, strict_mode: bool = True) -> bool:
+    def and_all(cls, *values) -> bool:
         """
         对Boolean数组取与
 
@@ -185,47 +204,45 @@ class BooleanUtil:
         ----------
         values : typing.List[bool]
             待检测Boolean数组
-        strict_mode : bool, optional
-            是否启动严格模式, 如果开启严格模式, 则不会使用BOOL进行布尔运算,否则会进行布尔运算, by default True
+
 
         Returns
         -------
         bool
-            _description_
+
 
         Raises
         ------
         ValueError
-            如果数组为空则抛出异常
+            _description_
         """
-        if SequenceUtil.is_empty(values):
-            raise ValueError("Empty sequence")
 
         for flg in values:
-            flg = cls._check_boolean_value(flg, strict_mode=strict_mode)
             if not flg:
                 return False
 
         return True
 
     @classmethod
-    def or_all(cls, *values, strict_mode: bool = True) -> bool:
+    def or_all(cls, *values) -> bool:
         """
         对Boolean数组取或
 
         Example:
         ----------
-        >>> BooleanUtil.or_all([True, False]) # True
-        >>> BooleanUtil.or_all([True, True]) # True
-        >>> BooleanUtil.or_all([True, False, True]) # True
-        >>> BooleanUtil.or_all([False, False, False]) # False
+        >>> BooleanUtil.or_all([True, False])
+        True
+        >>> BooleanUtil.or_all([True, True])
+        True
+        >>> BooleanUtil.or_all([True, False, True])
+        True
+        >>> BooleanUtil.or_all([False, False, False])
+        False
 
         Parameters
         ----------
         values : typing.List[bool]
             待检测Boolean数组
-        strict_mode : bool, optional
-            是否启动严格模式, 如果开启严格模式, 则不会使用BOOL进行布尔运算,否则会进行布尔运算, by default True
 
         Returns
         -------
@@ -241,7 +258,6 @@ class BooleanUtil:
             raise ValueError("Empty sequence")
 
         for flg in values:
-            flg = cls._check_boolean_value(flg, strict_mode=strict_mode)
             if flg:
                 return True
 
@@ -1111,8 +1127,10 @@ class StringUtil(SequenceUtil):
         bool
             字符串是否全为空白字符
         """
-        if s is None or len(s) == 0:
+        if s is None:
             return False
+        if cls.get_length(s) == 0:
+            return True
         for c in s:
             if not c.isspace():
                 return False
@@ -1321,7 +1339,7 @@ class StringUtil(SequenceUtil):
         return False
 
     @classmethod
-    def is_endswith(
+    def is_ends_with(
         cls,
         s: str,
         suffix: str,
@@ -1404,13 +1422,13 @@ class StringUtil(SequenceUtil):
         if cls.is_empty(suffixes) or cls.is_blank(s):
             return False
         for suffix in suffixes:
-            if cls.is_endswith(s, suffix, case_insensitive=case_insensitive):
+            if cls.is_ends_with(s, suffix, case_insensitive=case_insensitive):
                 return True
 
         return False
 
     @classmethod
-    def has_number(cls, s: str) -> bool:
+    def contain_digit(cls, s: str) -> bool:
         """
         判断字符串是否包含数字
 
@@ -1614,7 +1632,7 @@ class StringUtil(SequenceUtil):
         ValueError
             如果 number 不是[1-20]范围的数字则抛出异常
         """
-        if 1 <= number <= 20:
+        if not (1 <= number <= 20):
             raise ValueError("number should be between 1 and 20")
         return chr(ord("①") + number - 1)
 
@@ -1751,11 +1769,8 @@ class StringUtil(SequenceUtil):
         bool
             返回两个字符串是否相等
         """
-        if (s1 is None and s2 is not None) or (s1 is not None and s2 is None):
-            return False
-
         if s1 is None or s2 is None:
-            return True
+            return False
 
         if strict_mode:
             return s1 == s2
@@ -1904,7 +1919,7 @@ class StringUtil(SequenceUtil):
             随机字符串
         """
         if chars is None:
-            chars = string.ascii_letters + string.digits
+            chars = string.ascii_letters
 
         return "".join(RandomUtil.get_random_items_from_sequence(chars, n))
 
@@ -2071,9 +2086,11 @@ class StringUtil(SequenceUtil):
         """
         line_lst = []
         lines = s.splitlines()
+        if not lines:
+            return f"{annotation_syntax} {s}"
         for line in lines:
             if not line.startswith(annotation_syntax):
-                line_lst.append(annotation_syntax + " " + line)
+                line_lst.append(f"{annotation_syntax} {line}")
             else:
                 line_lst.append(line)
 
@@ -2094,6 +2111,8 @@ class StringUtil(SequenceUtil):
         int
             字符串长度
         """
+        if s is None:
+            return 0
         if cls.is_all_whitespace(s):
             return len(s)
 
@@ -2213,7 +2232,7 @@ class StringUtil(SequenceUtil):
         return [s[i : i + n] for i in range(0, len(s), n)]
 
     @classmethod
-    @UnCkeckFucntion()
+    @UnCheckFunction()
     def format_in_currency(cls, s: str | float) -> str:
         """
         格式化字符串为货币格式
@@ -2274,7 +2293,7 @@ class StringUtil(SequenceUtil):
         str
             填充后的字符串
         """
-        if cls.is_endswith(s, suffix, case_insensitive=case_insensitive):
+        if cls.is_ends_with(s, suffix, case_insensitive=case_insensitive):
             return s
         else:
             return s + suffix
@@ -2297,6 +2316,8 @@ class StringUtil(SequenceUtil):
         str
             重复后的字符串
         """
+        if cls.get_length(s) == 0:
+            return cls.EMPTY
         str_length = len(s)
         if str_length >= length:
             return s[:length]
@@ -2304,7 +2325,28 @@ class StringUtil(SequenceUtil):
             return s + cls.repeat_by_length(s, length - str_length)
 
     @classmethod
-    @UnCkeckFucntion()
+    def repeat_by_count(cls, s: str, num: int) -> str:
+        """
+        重复字符串，直到数量达到指定数量
+
+        Parameters
+        ----------
+        s : str
+            待重复字符串
+        num : int
+            重复后字符串数量
+
+        Returns
+        -------
+        str
+            重复后的字符串
+        """
+        if num == 0:
+            return cls.EMPTY
+        return s if num == 1 else s + cls.repeat_by_count(s, num - 1)
+
+    @classmethod
+    @UnCheckFunction()
     def roman_encode(cls, num: int) -> str:
         """
         将阿拉伯数字转换成罗马数字
@@ -2329,7 +2371,7 @@ class StringUtil(SequenceUtil):
         return roman_num
 
     @classmethod
-    @UnCkeckFucntion()
+    @UnCheckFunction()
     def roman_decode(cls, s: str) -> int:
         roman_int_mapping = {
             "I": 1,
@@ -2355,7 +2397,7 @@ class StringUtil(SequenceUtil):
         return int_value
 
     @classmethod
-    @UnCkeckFucntion()
+    @UnCheckFunction()
     def get_roman_range(cls, start: int, end: int, step: int = 1) -> typing.Generator[str, None, None]:
         """
         跟 range 函数一样生成罗马数字序列
@@ -2389,6 +2431,32 @@ class StringUtil(SequenceUtil):
 
         for i in range(start, end):
             yield cls.roman_encode(i)
+
+    @classmethod
+    def remove_all(cls, s: str, *chars: str) -> str:
+        """
+        去除字符串中指定的多个字符，如有多个则全部去除
+
+        Parameters
+        ----------
+        s : str
+            待去除字符串
+        chars : str
+            字符列表
+
+        Returns
+        -------
+        str
+            如果字符串为 None 、为空或者 chars 参数为空, 则返回字符串本身。\n
+            否则返回去除指定字符后的字符串
+        """
+        if s is None or SequenceUtil.is_empty(chars) or cls.is_blank(s):
+            return s
+
+        for char in chars:
+            s = s.replace(char, "")
+
+        return s
 
     @classmethod
     def remove_blank(cls, s: str) -> str:
@@ -2428,7 +2496,7 @@ class StringUtil(SequenceUtil):
             移除后的字符串
         """
         # NOTE 兼容3.9之前的版本，3.9之后可以直接调用str.removesuffix()方法
-        if cls.is_endswith(s, suffix, case_insensitive=case_insensitive):
+        if cls.is_ends_with(s, suffix, case_insensitive=case_insensitive):
             return s[: -len(suffix)]
         else:
             return s
@@ -2747,11 +2815,11 @@ class StringUtil(SequenceUtil):
         -------
         1. 该方法依赖于`StringUtil.get_random_strs()`
         """
-        basic_str = cls.get_random_strs(k)
+        basic_str = cls.get_random_str_lower(k)
         return basic_str.capitalize()
 
     @classmethod
-    def get_random_chineses(cls, length: int = 10) -> typing.Generator[str, None, None]:
+    def get_random_chinese_generator(cls, length: int = 10) -> typing.Generator[str, None, None]:
         """
         获取指定长度的随机中文字符
 

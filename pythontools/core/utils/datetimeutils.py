@@ -16,16 +16,20 @@ Change Activity:
 
 import calendar
 import time
+from collections.abc import Generator
 from datetime import date, datetime, timedelta, tzinfo
 
 import pytz
 
-from ..constants.datetime_constant import Quarter, TimeUnit
-from .randomutils import RandomUtil
+from pythontools.core.constants.datetime_constant import Month, Quarter, TimeUnit, Week
+from pythontools.core.date.relativedelta import relativedelta
+from pythontools.core.utils.basicutils import StringUtil
+from pythontools.core.utils.randomutils import RandomUtil
 
 
 class DatetimeUtil:
-    wtb = [
+    UNITS = {"s": "seconds", "m": "minutes", "h": "hours", "D": "days", "W": "weeks"}
+    WTB = [
         "sun",
         "mon",
         "tue",
@@ -67,14 +71,13 @@ class DatetimeUtil:
         return datetime.now().year
 
     @classmethod
-    def this_quarter(cls) -> int:
+    def this_quarter(cls) -> Quarter | None:
         """
 
         :return:
         """
         dt = datetime.now()
-        quarter = Quarter.get_quarter(dt)
-        return quarter.value.val
+        return Quarter.get_quarter(dt)
 
     @classmethod
     def this_month(cls) -> int:
@@ -127,7 +130,7 @@ class DatetimeUtil:
             当前毫秒数
         """
         current_seconds = time.time()
-        return cls.conver_time(current_seconds, TimeUnit.SECONDS, TimeUnit.MILLISECONDS)
+        return cls.convert_time(current_seconds, TimeUnit.SECONDS, TimeUnit.MILLISECONDS)
 
     @classmethod
     def this_ts(cls) -> float:
@@ -136,6 +139,527 @@ class DatetimeUtil:
         :return:
         """
         return datetime.now().timestamp()
+
+    @classmethod
+    def tomorrow(cls) -> datetime:
+        """
+        返回明天的日期
+
+        Returns
+        -------
+        date
+            明天的日期
+        """
+
+        return cls.offset_day(cls.local_now(), 1)
+
+    @classmethod
+    def yesterday(cls) -> datetime:
+        """
+        返回表示昨天的日期对象
+
+        Returns
+        -------
+        datetime
+            表示昨天的日期对象
+        """
+        return cls.offset_day(cls.local_now(), -1)
+
+    @classmethod
+    def today_in_next_year(cls, dt: datetime | None) -> datetime:
+        """
+        获取下一年的日期
+
+        Parameters
+        ----------
+        dt : datetime, optional
+            待获取下一年的日期, 默认为当前日期, 类型为 datetime
+
+        Returns
+        -------
+        datetime
+            表示下一年同一天的 datetime 对象
+        """
+        if dt is None:
+            dt = cls.local_now()
+
+        if cls.is_leap_year(dt.year):
+            return dt.replace(year=dt.year + 1, day=28)
+        else:
+            return dt.replace(year=dt.year + 1)
+
+    @classmethod
+    def today_in_last_year(cls, dt: datetime | None = None) -> datetime:
+        """
+        获取上一年的日期
+
+        Parameters
+        ----------
+        dt : datetime | None, optional
+            待获取上一年的日期, 默认为当前日期, by default None
+
+        Returns
+        -------
+        datetime
+            表示上一年同一天的 datetime 对象
+        """
+        if dt is None:
+            dt = cls.local_now()
+
+        return dt.replace(year=dt.year - 1)
+
+    @classmethod
+    def next_year(cls, dt: datetime | None = None) -> datetime:
+        """
+        返回下一年的年份
+
+        Parameters
+        ----------
+        dt : datetime | None, optional
+            待判断日期对象, 默认为当前日期
+
+        Returns
+        -------
+        int
+            下一年年份
+        """
+        if dt is None:
+            dt = cls.local_now()
+        return cls.offset_year(dt, 1)
+
+    @classmethod
+    def last_year(cls, dt: datetime | None = None) -> datetime:
+        """
+        返回上一年的年份
+
+        Parameters
+        ----------
+        dt : datetime | None, optional
+            待判断日期对象, 默认为当前日期
+
+        Returns
+        -------
+        int
+            上一年年份
+        """
+        if dt is None:
+            dt = cls.local_now()
+        return cls.offset_year(dt, -1)
+
+    @classmethod
+    def next_quarter(cls, dt: datetime | None = None) -> Quarter | None:
+        """
+        返回表示下一季度的枚举对象
+
+        Parameters
+        ----------
+        dt : datetime | None, optional
+            待判断日期对象, 默认为当前日期
+
+        Returns
+        -------
+        Quarter
+            _description_
+        """
+        if dt is None:
+            dt = cls.local_now()
+
+        return cls.offset_quarter(dt, 1)
+
+    @classmethod
+    def last_quarter(cls, dt: datetime | None = None) -> Quarter | None:
+        if dt is None:
+            dt = cls.local_now()
+        return cls.offset_quarter(dt, -1)
+
+    @classmethod
+    def next_month(cls, dt: datetime | None = None) -> datetime:
+        """
+        返回表示下一个月的枚举对象
+
+        Parameters
+        ----------
+        dt : datetime | None, optional
+            待检测日期对象, by default None
+
+        Returns
+        -------
+        Month
+            表示下一个月的枚举对象
+        """
+        if dt is None:
+            dt = cls.local_now()
+        return cls.offset_month(dt, 1)
+
+    @classmethod
+    def last_month(cls, dt: datetime | None = None) -> datetime:
+        """
+        返回表示上一个月的枚举对象
+
+        Parameters
+        ----------
+        dt : datetime | None, optional
+            待检测的日期, 默认为当前日期, by default None
+
+        Returns
+        -------
+        Month
+            表示上一个月的枚举对象
+        """
+        if dt is None:
+            dt = cls.local_now()
+
+        return cls.offset_month(dt, -1)
+
+    @classmethod
+    def offset_year(cls, dt: datetime, offset: int) -> datetime:
+        """
+        偏移年份
+
+        Parameters
+        ----------
+        dt : datetime
+            待偏移的日期
+        offset : int
+            偏移量
+
+        Returns
+        -------
+        int
+            偏移后的年份
+        """
+        return dt + relativedelta(years=offset)
+
+    @classmethod
+    def offset_quarter(cls, dt: datetime, offset: int) -> Quarter | None:
+        """
+        偏移季度
+
+        Parameters
+        ----------
+        dt : datetime
+            待偏移的日期
+        offset : int
+            偏移量
+
+        Returns
+        -------
+        Quarter | None
+            偏移后的季度枚举实例
+        """
+        new_dt = dt + relativedelta(months=3 * offset)
+        return Quarter.get_quarter(new_dt)
+
+    @classmethod
+    def offset_month(cls, dt: datetime, offset: int) -> datetime:
+        """
+        偏移月份
+
+        Parameters
+        ----------
+        dt : datetime
+            待偏移的日期
+        offset : int
+            偏移量
+
+        Returns
+        -------
+        int
+            偏移后的月份
+        """
+        return dt + relativedelta(months=offset)
+
+    @classmethod
+    def offset_week(cls, dt: datetime, offset: int) -> datetime:
+        """
+        偏移周数
+
+        Parameters
+        ----------
+        dt : datetime
+            待偏移的日期
+        offset : int
+            偏移量
+
+        Returns
+        -------
+        datetime
+            偏移后的日期对象
+        """
+        return dt + relativedelta(weeks=offset)
+
+    @classmethod
+    def offset_day(cls, dt: datetime, offset: int) -> datetime:
+        """
+        偏移天数
+
+        Parameters
+        ----------
+        dt : datetime
+            待偏移的日期
+        offset : int
+            偏移量
+
+        Returns
+        -------
+        datetime
+            偏移后的日期对象
+        """
+        return dt + relativedelta(days=offset)
+
+    @classmethod
+    def offset_hour(cls, dt: datetime, offset: int) -> datetime:
+        """
+        偏移小时
+
+        Parameters
+        ----------
+        dt : datetime
+            待偏移的日期
+        offset : int
+            偏移量
+
+        Returns
+        -------
+        datetime
+            偏移后的日期对象
+        """
+        return dt + relativedelta(hours=offset)
+
+    @classmethod
+    def offset_minute(cls, dt: datetime, offset: int) -> datetime:
+        """
+        偏移分钟
+
+        Parameters
+        ----------
+        dt : datetime
+            待偏移的日期
+        offset : int
+            偏移量
+
+        Returns
+        -------
+        datetime
+            偏移后的日期对象
+        """
+        return dt + relativedelta(minutes=offset)
+
+    @classmethod
+    def offset_second(cls, dt: datetime, offset: int) -> datetime:
+        """
+        偏移秒数
+
+        Parameters
+        ----------
+        dt : datetime
+            待偏移的日期
+        offset : int
+            偏移量
+
+        Returns
+        -------
+        datetime
+            偏移后的日期对象
+        """
+        return dt + relativedelta(seconds=offset)
+
+    @classmethod
+    def offset_millisecond(cls, dt: datetime, offset: int) -> datetime:
+        """
+        偏移毫秒数
+
+        Parameters
+        ----------
+        dt : datetime
+            待偏移的日期
+        offset : int
+            偏移量
+
+        Returns
+        -------
+        datetime
+            偏移后的日期对象
+        """
+        return dt + relativedelta(microseconds=offset * 1000)
+
+    @classmethod
+    def offset_microsecond(cls, dt: datetime, offset: int) -> datetime:
+        """
+        偏移微妙数
+
+        Parameters
+        ----------
+        dt : datetime
+            待偏移的日期
+        offset : int
+            偏移量
+
+        Returns
+        -------
+        datetime
+            偏移后的日期对象
+        """
+        return dt + relativedelta(microseconds=offset)
+
+    @classmethod
+    def between(cls, dt: datetime, other: datetime, time_unit: TimeUnit) -> int | float:
+        """
+        判断两个日期相差的时长，只保留绝对值
+
+        Parameters
+        ----------
+        dt : datetime
+            日期对象1
+        other : datetime
+            日期对象2
+        time_unit : TimeUnit
+            时间单位
+
+        Returns
+        -------
+        int | float
+            两个日期相差的时长
+        """
+        diff_in_seconds = (dt - other).total_seconds()
+        return cls.convert_time(diff_in_seconds, TimeUnit.SECONDS, time_unit)
+
+    @classmethod
+    def between_days(
+        cls,
+        dt: datetime,
+        other: datetime,
+    ) -> int | float:
+        """
+        以天为单位返回两个日期的差值
+
+        Parameters
+        ----------
+        dt : datetime
+            日期1
+        other : datetime
+            日期2
+
+        Returns
+        -------
+        int | float
+            两个日期相差的天数
+        """
+        return cls.between(dt, other, TimeUnit.DAYS)
+
+    @classmethod
+    def between_hours(cls, dt: datetime, other: datetime) -> int | float:
+        """
+        以小时为单位返回两个日期的差值
+
+        Parameters
+        ----------
+        dt : datetime
+            日期1
+        other : datetime
+            日期2
+
+        Returns
+        -------
+        int | float
+            两个日期相差的小时数
+        """
+        return cls.between(dt, other, TimeUnit.HOURS)
+
+    @classmethod
+    def between_minutes(cls, dt: datetime, other: datetime) -> int | float:
+        """
+        以分钟为单位返回两个日期的差值
+
+        Parameters
+        ----------
+        dt : datetime
+            日期1
+        other : datetime
+            日期2
+
+        Returns
+        -------
+        int | float
+            两个日期相差的分钟数
+        """
+        return cls.between(dt, other, TimeUnit.MINUTES)
+
+    @classmethod
+    def between_seconds(cls, dt: datetime, other: datetime) -> int | float:
+        """
+        以秒为单位返回两个日期的差值
+
+        Parameters
+        ----------
+        dt : datetime
+            日期1
+        other : datetime
+            日期2
+
+        Returns
+        -------
+        int | float
+            两个日期相差的秒数
+        """
+        return cls.between(dt, other, TimeUnit.SECONDS)
+
+    @classmethod
+    def between_milliseconds(cls, dt: datetime, other: datetime) -> int | float:
+        """
+        以毫秒为单位返回两个日期的差值
+
+        Parameters
+        ----------
+        dt : datetime
+            日期1
+        other : datetime
+            日期2
+
+        Returns
+        -------
+        int | float
+            两个日期相差的毫秒数
+        """
+        return cls.between(dt, other, TimeUnit.MILLISECONDS)
+
+    @classmethod
+    def between_microseconds(cls, dt: datetime, other: datetime) -> int | float:
+        """
+        以微秒为单位返回两个日期的差值
+
+        Parameters
+        ----------
+        dt : datetime
+            日期1
+        other : datetime
+            日期2
+
+        Returns
+        -------
+        int | float
+            两个日期相差的微秒数
+        """
+        return cls.between(dt, other, TimeUnit.MICROSECONDS)
+
+    @classmethod
+    def between_nanoseconds(cls, dt: datetime, other: datetime) -> int | float:
+        """
+        以纳秒为单位返回两个日期的差值
+
+        Parameters
+        ----------
+        dt : datetime
+            日期1
+        other : datetime
+            日期2
+
+        Returns
+        -------
+        int | float
+            两个日期相差的纳秒数
+        """
+        return cls.between(dt, other, TimeUnit.NANOSECONDS)
 
     @classmethod
     def is_leap_year(cls, year: int) -> bool:
@@ -155,9 +679,7 @@ class DatetimeUtil:
         :param date2: 待检测日期2
         :return: 是否是同一年
         """
-        if date1 is None or date2 is None:
-            return False
-        return date1.year == date2.year
+        return False if date1 is None or date2 is None else date1.year == date2.year
 
     @classmethod
     def is_same_quarter(cls, date1: datetime, date2: datetime) -> bool:
@@ -210,6 +732,202 @@ class DatetimeUtil:
         return cls.is_same_month(date1, date2) and date1.day == date2.day
 
     @classmethod
+    def is_weekend_by_dt(cls, dt: datetime) -> bool:
+        """
+        返回给定日期对象是否是周末
+
+        Parameters
+        ----------
+        dt : datetime
+            待检测日期对象
+
+        Returns
+        -------
+        bool
+            如果给定日期是周末, 则返回True,  否则返回False
+        """
+        week_obj = cls.get_day_of_week(dt)
+        return week_obj in [Week.SATURDAY, Week.SUNDAY]
+
+    @classmethod
+    def is_weekend(
+        cls,
+        year: int,
+        month: int,
+        day: int,
+    ) -> bool:
+        """
+        判断给定的日期是否是周末
+
+        Parameters
+        ----------
+        year : int
+            给定年
+        month : int
+            给定月
+        day : int
+            给定日
+
+        Returns
+        -------
+        bool
+            如果是周末则返回True, 否则返回False
+        """
+        return cls.is_weekend_by_dt(datetime(year, month, day))
+
+    @classmethod
+    def is_weekday_by_dt(cls, dt: datetime) -> bool:
+        """
+        返回是给定的dt对象是否是周一到周五
+
+        Parameters
+        ----------
+        dt : datetime
+            待检测dt对象
+
+        Returns
+        -------
+        bool
+            如果是周一到周五这返回True, 否则返回False
+        """
+        return not cls.is_weekend_by_dt(dt)
+
+    @classmethod
+    def is_weekday(cls, year: int, month: int, day: int) -> bool:
+        """
+        判断给定的日期是否是周一到周五
+
+        Parameters
+        ----------
+        year : int
+            给定年
+        month : int
+            给定月
+        day : int
+            给定日
+
+        Returns
+        -------
+        bool
+            如果是周一到周五这返回True, 否则返回False
+        """
+        return cls.is_weekday_by_dt(datetime(year, month, day))
+
+    @classmethod
+    def has_tz(cls, dt: datetime) -> bool:
+        """
+        返回给定的日期对象是否含有时区信息
+
+        Parameters
+        ----------
+        dt : datetime
+            待判断日期对象
+
+        Returns
+        -------
+        bool
+            如果日期对象含有时区信息返回True, 否则返回False
+
+        Notes:
+        -------
+        ref: https://github.com/RhetTbull/datetime-utils/blob/main/datetime_tzutils.py
+        """
+        if not isinstance(dt, datetime):
+            raise TypeError(f"dt must be a datetime object, but got {type(dt)}")
+        return dt.tzinfo is not None and dt.tzinfo.utcoffset(dt) is not None
+
+    @classmethod
+    def local_to_utc(cls, dt: datetime) -> datetime:
+        """
+        将 datetime 对象(带时区信息)转换成UTC时间
+
+        Parameters
+        ----------
+        dt : datetime
+            待转换的datetime对象
+
+        Returns
+        -------
+        datetime
+            转换后的datetime对象(UTC时间)
+
+        Raises
+        ------
+        TypeError
+            如果给定的对象不是 datetime 类型, 则抛出 TypeError 异常
+        ValueError
+            如果给定的对象没有时区信息, 则抛出 ValueError 异常
+
+        Notes:
+        -------
+        ref: https://github.com/RhetTbull/datetime-utils/blob/main/datetime_tzutils.py
+        """
+
+        if not isinstance(dt, datetime):
+            raise TypeError(f"dt must be type datetime.datetime, not {type(dt)}")
+
+        if cls.has_tz(dt):
+            return dt.astimezone(tz=pytz.timezone("UTC"))
+        else:
+            raise ValueError("dt does not have timezone info")
+
+    @classmethod
+    def datetime_remove_tz(cls, dt: datetime) -> datetime:
+        """
+        删除时区信息
+
+        Parameters
+        ----------
+        dt : datetime
+            待删除的 datetime 对象
+
+        Returns
+        -------
+        datetime
+            删除时区信息后的 datetime 对象
+
+        Raises
+        ------
+        TypeError
+            如果给定的对象不是 datetime 对象, 则抛出异常
+        """
+
+        if not isinstance(dt, datetime):
+            raise TypeError(f"dt must be type datetime.datetime, not {type(dt)}")
+
+        return dt.replace(tzinfo=None)
+
+    @classmethod
+    def utc_offset_seconds(cls, dt: datetime) -> int:
+        """
+        针对含有时区信息的 datetime 对象，以秒为单位返回与UTC的偏移量
+
+        Parameters
+        ----------
+        dt : datetime
+            待检测 datetime 对象
+
+        Returns
+        -------
+        int
+            以秒为单位返回与UTC的偏移量
+
+        Raises
+        ------
+        TypeError
+            如果给定的对象不是 datetime 对象, 则抛出异常
+        ValueError
+            如果 datetime 对象不包含时区信息, 则抛出异常
+        """
+        if not isinstance(dt, datetime):
+            raise TypeError(f"dt must be type datetime.datetime, not {type(dt)}")
+
+        if cls.has_tz(dt):
+            return dt.tzinfo.utcoffset(dt).total_seconds()  # type: ignore
+        else:
+            raise ValueError("dt does not have timezone info")
+
+    @classmethod
     def get_random_tz(cls) -> tzinfo:
         """
         获取随机时区
@@ -259,8 +977,7 @@ class DatetimeUtil:
 
         days_between = (end - start).days
         random_num_of_days = RandomUtil.get_random_val_from_range(0, days_between)
-        random_date = start + timedelta(days=random_num_of_days)
-        return random_date
+        return start + timedelta(days=random_num_of_days)
 
     @classmethod
     def get_random_datetime(
@@ -313,7 +1030,7 @@ class DatetimeUtil:
         :return: None
         """
         start = time.time()
-        seconds = seconds * (datetime.resolution * 1e6).seconds
+        seconds *= (datetime.resolution * 1e6).seconds
         left = seconds
         while True:
             time.sleep(left)
@@ -330,15 +1047,17 @@ class DatetimeUtil:
         return datetime.now(pytz.UTC)
 
     @classmethod
-    def local_to_utc(cls, date_obj: datetime) -> datetime:
+    def local_now(cls) -> datetime:
         """
-        当前时间转UTC时间
-        :param date_obj: 待转换的 Datetime 对象
-        :return: 表示UTC时间的 Datetime 对象
+        获取当前本地时间
+
+        Returns
+        -------
+        datetime
+            表示本地时间的 datetime 对象
         """
-        if not isinstance(date_obj, datetime):
-            raise TypeError(f"date_obj must be datetime.datetime, not {type(date_obj)}")
-        return date_obj.astimezone(pytz.timezone("UTC"))
+        tz = cls.get_local_tz()
+        return datetime.now(tz)
 
     @classmethod
     def utc_to_local(cls, date_obj: datetime, tz: str) -> datetime:
@@ -379,8 +1098,7 @@ class DatetimeUtil:
         now = datetime.now() + timedelta(days=1)
         if use_float_format:
             sub_days = (now - birthday).days
-            age = round(sub_days / 365, 1)
-            return age
+            return round(sub_days / 365, 1)
 
         age = now.year - birthday.year
 
@@ -403,7 +1121,7 @@ class DatetimeUtil:
         :param duration: 时长
         :return: 秒
         """
-        return cls.conver_time(duration, TimeUnit.NANOSECONDS, TimeUnit.SECONDS)
+        return cls.convert_time(duration, TimeUnit.NANOSECONDS, TimeUnit.SECONDS)
 
     @classmethod
     def nanos_to_millis(cls, duration: int) -> float:
@@ -412,7 +1130,7 @@ class DatetimeUtil:
         :param duration: 时长
         :return: 毫秒
         """
-        return cls.conver_time(duration, TimeUnit.NANOSECONDS, TimeUnit.MILLISECONDS)
+        return cls.convert_time(duration, TimeUnit.NANOSECONDS, TimeUnit.MILLISECONDS)
 
     @classmethod
     def second_to_time(cls, seconds: int) -> str:
@@ -421,10 +1139,7 @@ class DatetimeUtil:
         :param seconds: 需要转换的秒数
         :return: 转换后的字符串
         """
-        # PERF 取余符号效率低, 应该优化
-        # PERF 1 使用整除代替除法
-        hour = seconds // 3600
-        other = seconds % 3600
+        hour, other = divmod(seconds, 3600)
         minute = other / 60
         seconds = other % 60
 
@@ -432,7 +1147,28 @@ class DatetimeUtil:
         return res_dt.strftime("%H:%M:%S")
 
     @classmethod
-    def conver_time(cls, value: int | float, from_unit: TimeUnit, to_unit: TimeUnit) -> int | float:
+    def get_day_of_week(cls, dt: datetime) -> Week | None:
+        """
+        根据日期获取星期枚举实例
+
+        Parameters
+        ----------
+        dt : datetime
+            待检测日期对象
+
+        Returns
+        -------
+        Week | None
+            根据日期对象返回的星期枚举实例, 如果日期对象为 None或者日期不合法, 则返回 None
+        """
+        if dt is None:
+            return None
+        day_of_week = dt.weekday()
+
+        return Week.get_week(day_of_week + 1)
+
+    @classmethod
+    def convert_time(cls, value: int | float, from_unit: TimeUnit, to_unit: TimeUnit) -> int | float:
         if value is None or from_unit is None or to_unit is None:
             raise ValueError("value cannot be None")
 
@@ -457,3 +1193,159 @@ class DatetimeUtil:
             raise TypeError("dt cannot be None")
 
         return dt.isoformat()
+
+    @classmethod
+    def parse_period(cls, period: str) -> timedelta:
+        """
+        解析周期字符串, 如 "1D" 表示1天, "2W" 表示2周, "3M" 表示3个月, "4Y" 表示4年
+
+        Examples
+        --------
+        >>> parse_period("1D")
+        datetime.timedelta(days=1)
+        >>> parse_period("2W")
+        datetime.timedelta(days=14)
+        >>> parse_period("15m")
+        timedelta(minutes=15)
+        >>> parse_period("1W")
+        timedelta(weeks=1)
+
+        Parameters
+        ----------
+        period : str
+            代表时间间隔的字符串
+
+        Returns
+        -------
+        timedelta
+            timedelta对象,表示时间间隔
+
+        Notes
+        -----
+        ref: https://gist.github.com/dsakovych/c1714d0c17ac0955c4b3149d42f34af5
+        """
+        value = int(period[:-1])
+        unit = period[-1].lower()
+        if unit not in cls.UNITS:
+            raise ValueError(f"Invalid unit: {unit}")
+        kwargs = {cls.UNITS[unit]: value}
+        return timedelta(**kwargs)
+
+    @classmethod
+    def generate_dt_range(
+        cls,
+        start: str,
+        end: str,
+        period: str,
+    ) -> Generator[datetime, None, None]:
+        """
+        产生时间 datetime 序列
+
+        Parameters
+        ----------
+        start : str
+            起始时间，格式为 ISO 8601
+        end : str
+            结束时间，格式为 ISO 8601
+        period : str
+            时间周期
+
+        Yields
+        ------
+        Generator[datetime, None, None]
+            datetime 对象生成器
+        """
+        start_dt = datetime.fromisoformat(start)
+        end_dt = datetime.fromisoformat(end)
+        period_delta = cls.parse_period(period)
+
+        current_dt = start_dt
+
+        while current_dt < end_dt:
+            yield current_dt
+            current_dt = min(current_dt + period_delta, end_dt)
+            if current_dt >= end_dt:
+                break
+
+    @classmethod
+    def nth_day_of_month(cls, *, year: int, month: int, weekday: int, n: int) -> date:
+        """
+        返回给定日期的第n个星期几的日期
+
+        Parameters
+        ----------
+        year : int
+            给定的年
+        month : int
+            给定的月
+        weekday : int
+            给定的周记
+        n : int
+            给定的第n个星期几
+
+        Returns
+        -------
+        date | None
+            给定日期的第n个星期几的日期
+
+        Raises
+        ------
+        IndexError
+            如果月份或星期数不合法, 则抛出异常
+
+        Notes
+        -----
+        ref: https://github.com/fitnr/convertdate
+        """
+
+        if not 0 <= n <= 5:
+            raise IndexError(f"Nth day of month must be 0-5. Received: {n}")
+
+        month_obj: Month | None = Month.get_month(month)
+        weekday_obj = Week.get_week(weekday)
+
+        if month_obj is None:
+            raise IndexError("month is out of range, must be 1-12")
+
+        if weekday_obj is None:
+            raise IndexError("weekday is out of range, must be 1-7")
+
+        return cls._nth_day_of_month_obj(year, month_obj, weekday_obj, n)
+
+    @classmethod
+    def _nth_day_of_month_obj(cls, year: int, month_obj: Month, weekday_obj: Week, n: int) -> date:
+        month = month_obj.get_value()
+        weekday = weekday_obj.get_value()
+
+        first_day, days_in_month = calendar.monthrange(year, month)
+        # 获取当月第一个给定 weekday 是几号
+        # 例如2024-08 第一个周一是2024-08-05， 第一个周四是1号
+        first_weekday_of_kind = 1 + (weekday - first_day) % 7
+
+        if n == 0:
+            if first_weekday_of_kind in [1, 2, 3] and first_weekday_of_kind + 28 <= days_in_month:
+                n = 5
+            else:
+                n = 4
+
+        day = first_weekday_of_kind + ((n - 1) * 7)
+        if day > days_in_month:
+            raise IndexError(f"No {n}th day of month {month}")
+
+        return date(year, month, day)
+
+    @classmethod
+    def parse(cls, date_str: str) -> datetime:
+        if StringUtil.is_blank(date_str):
+            return datetime.max
+        date_str = StringUtil.remove_all(date_str, "年", "月", "日", "时", "分", "秒")
+        # TODO 纯数字的日期格式解析
+        # TODO 当初的时间格式
+        # TODO CST时间格式
+        # TODO UTC时间格式
+        # TODO 标准日期格式
+        return datetime.strptime(date_str, "%Y%m%d%H%M%S")
+
+    @classmethod
+    def _cyclic_acquire(cls, val: int, max_val: int, offset: int):
+        return (val + offset) % max_val
